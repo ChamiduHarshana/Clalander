@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>xCHAMi STUDIO | Full Fix</title>
+    
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.5.13/cropper.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.5.13/cropper.min.js"></script>
+
+    <style>
+        :root { --ios-blue: #007aff; --ios-red: #ff3b30; }
+        body { font-family: -apple-system, sans-serif; background: #000; color: white; display: flex; flex-direction: column; align-items: center; padding: 20px 10px; margin: 0; }
+        
+        .editor-panel { 
+            width: 95%; max-width: 480px; background: rgba(255,255,255,0.1); 
+            backdrop-filter: blur(20px); padding: 20px; border-radius: 25px; 
+            border: 1px solid rgba(255,255,255,0.1); margin-bottom: 20px; 
+            display: flex; flex-direction: column; gap: 12px; 
+        }
+
+        #crop-area { display: none; width: 100%; border-radius: 15px; overflow: hidden; margin: 10px 0; border: 1px solid rgba(255,255,255,0.2); }
+        #image-to-crop { max-width: 100%; display: block; }
+
+        /* පෙනෙන Canvas එක */
+        #calendar-canvas { 
+            width: 100%; max-width: 450px; aspect-ratio: 2/3;
+            border-radius: 35px; position: relative; overflow: hidden;
+            display: flex; flex-direction: column; align-items: center; padding: 25px 15px; box-sizing: border-box;
+            background: #000;
+        }
+
+        #bg-photo { position: absolute; top: 0; left: 0; width: 100%; height: 100%; object-fit: cover; z-index: 1; }
+        .overlay { position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 2; }
+        .content { position: relative; z-index: 3; width: 100%; height: 100%; display: flex; flex-direction: column; align-items: center; justify-content: space-between; }
+        
+        .calendar-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; width: 100%; }
+        .month { border-radius: 10px; padding: 6px; border: 1px solid rgba(255,255,255,0.05); background: rgba(255,255,255,0.15); }
+        .m-name { font-size: 10px; font-weight: 800; text-align: center; margin-bottom: 4px; color: var(--ios-blue); }
+        .d-grid { display: grid; grid-template-columns: repeat(7, 1fr); font-size: 7.5px; text-align: center; gap: 1.5px; }
+        .sun { color: var(--ios-red); font-weight: bold; }
+
+        .btn { background: var(--ios-blue); color: white; border: none; padding: 12px; border-radius: 12px; font-weight: 600; cursor: pointer; width: 100%; }
+        .control-row { display: flex; align-items: center; justify-content: space-between; font-size: 12px; width: 100%; }
+        input[type="text"] { background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.2); color: white; padding: 8px; border-radius: 8px; width: 60%; }
+    </style>
+</head>
+<body>
+
+    <h2 style="margin: 10px 0 20px 0;">xCHAMi STUDIO PRO</h2>
+
+    <div class="editor-panel">
+        <input type="file" id="imgInp" accept="image/*">
+        
+        <div id="crop-area">
+            <img id="image-to-crop">
+            <button id="applyBtn" class="btn" style="background: #34c759; margin-top: 10px;">Apply Image</button>
+        </div>
+
+        <div class="control-row">
+            <span>Name:</span>
+            <input type="text" id="nameInput" placeholder="Your Name" maxlength="20">
+        </div>
+
+        <button class="btn" onclick="saveImage()">Save Final Image</button>
+    </div>
+
+    <div id="calendar-canvas">
+        <img id="bg-photo" src="https://via.placeholder.com/600x900?text=xCHAMi+STUDIO" alt="BG">
+        <div class="overlay" id="overlay" style="background: rgba(0,0,0,0.3); backdrop-filter: blur(2px);"></div>
+        
+        <div class="content" id="main-content" style="color: white;">
+            <div style="text-align: center;">
+                <h1 style="margin: 0; font-size: 35px; letter-spacing: -1px;">2026</h1>
+                <div id="display-name" style="font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 2px;">CREATED BY xCHAMi</div>
+            </div>
+
+            <div class="calendar-grid" id="cal-data"></div>
+            
+            <div style="font-size: 8px; opacity: 0.5;">DESIGNED BY XCHAMI STUDIO</div>
+        </div>
+    </div>
+
+    <script>
+        let cropper;
+        const imgInp = document.getElementById('imgInp');
+        const cropArea = document.getElementById('crop-area');
+        const imageToCrop = document.getElementById('image-to-crop');
+        const applyBtn = document.getElementById('applyBtn');
+        const bgPhoto = document.getElementById('bg-photo');
+        const nameInput = document.getElementById('nameInput');
+        const displayName = document.getElementById('display-name');
+
+        imgInp.onchange = (e) => {
+            const file = e.target.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = (event) => {
+                    imageToCrop.src = event.target.result;
+                    cropArea.style.display = 'block';
+                    if (cropper) cropper.destroy();
+                    cropper = new Cropper(imageToCrop, { aspectRatio: 2/3, viewMode: 1, autoCropArea: 1 });
+                };
+                reader.readAsDataURL(file);
+            }
+        };
+
+        applyBtn.onclick = () => {
+            bgPhoto.src = cropper.getCroppedCanvas({ width: 1200, height: 1800 }).toDataURL();
+            cropArea.style.display = 'none';
+        };
+
+        nameInput.oninput = (e) => {
+            displayName.innerText = e.target.value.trim() ? `CREATED BY ${e.target.value}` : "CREATED BY xCHAMi";
+        };
+
+        const months = ["JAN", "FEB", "MAR", "APR", "MAY", "JUN", "JUL", "AUG", "SEP", "OCT", "NOV", "DEC"];
+        const calData = document.getElementById('cal-data');
+        for (let m = 0; m < 12; m++) {
+            let box = document.createElement('div'); box.className = 'month';
+            let html = `<div class="m-name">${months[m]}</div><div class="d-grid">`;
+            ["S","M","T","W","T","F","S"].forEach(d => html += `<b style="opacity:0.4">${d}</b>`);
+            let start = new Date(2026, m, 1).getDay();
+            let total = new Date(2026, m + 1, 0).getDate();
+            for (let i = 0; i < start; i++) html += `<div></div>`;
+            for (let d = 1; d <= total; d++) {
+                let sun = new Date(2026, m, d).getDay() === 0;
+                html += `<div class="${sun ? 'sun' : ''}">${d}</div>`;
+            }
+            box.innerHTML = html + `</div>`;
+            calData.appendChild(box);
+        }
+
+        // --- මෙම කොටස සම්පූර්ණ දෝෂයම නිවැරදි කරයි ---
+        function saveImage() {
+            const element = document.getElementById('calendar-canvas');
+            
+            // 1. පින්තූරය ගන්නා මොහොතේ උස සහ හැඩය ස්ථාවර කරයි
+            const originalStyle = element.style.cssText;
+            element.style.width = "600px";
+            element.style.height = "900px";
+            element.style.borderRadius = "0px";
+            element.style.maxWidth = "none";
+            element.style.aspectRatio = "auto";
+
+            // 2. html2canvas මගින් මුළු කොටසම capture කරයි
+            html2canvas(element, { 
+                scale: 2, 
+                useCORS: true,
+                backgroundColor: "#000",
+                width: 600,
+                height: 900,
+                windowWidth: 600,
+                windowHeight: 900,
+                x: 0,
+                y: 0,
+                scrollX: 0,
+                scrollY: 0
+            }).then(canvas => {
+                let a = document.createElement('a');
+                a.download = 'Calendar_2026_Full.png';
+                a.href = canvas.toDataURL("image/png");
+                a.click();
+
+                // 3. නැවතත් කලින් තිබූ හැඩය ලබා දෙයි (UI එක වෙනස් නොවීමට)
+                element.style.cssText = originalStyle;
+            });
+        }
+    </script>
+</body>
+</html>
